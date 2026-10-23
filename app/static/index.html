@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <title>ClearFrame - &#35270;&#39057;&#21435;&#27700;&#21360;&#25511;&#21046;&#21488;</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span></span><span></span></div>
+        <div><strong>ClearFrame</strong><small>VIDEO CLEANUP</small></div>
+      </div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="library"><span class="nav-icon">&#9638;</span><span>&#32032;&#26448;&#24211;</span></button>
+        <button class="nav-item" data-view="queue"><span class="nav-icon">&#8644;</span><span>&#20219;&#21153;&#38431;&#21015;</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">&#9881;</span><span>&#25509;&#21475;&#35774;&#32622;</span></button>
+      </nav>
+      <div class="sidebar-card">
+        <div class="eyebrow">API STATUS</div>
+        <div class="provider-line"><span id="providerDot" class="status-dot"></span><strong id="providerName">Mock</strong></div>
+        <p id="providerHint">&#28436;&#31034;&#27169;&#24335;&#19981;&#20250;&#20462;&#22797;&#30011;&#38754;</p>
+      </div>
+      <div class="sidebar-foot">v0.1 &middot; Local Console</div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">WORKSPACE / FIGHT FOOTAGE</p>
+          <h1 id="pageTitle">&#32032;&#26448;&#24211;</h1>
+        </div>
+        <div class="top-actions">
+          <div class="search-box"><span>&#8981;</span><input id="searchInput" placeholder="&#25628;&#32034;&#25991;&#20214;&#21517;&#12289;&#26631;&#39064;&#25110;&#32032;&#26448; ID"></div>
+          <button id="scanButton" class="btn ghost"><span class="btn-icon">&#8635;</span>&#37325;&#26032;&#25195;&#25551;</button>
+          <button id="workerButton" class="btn primary"><span class="btn-icon">&#9654;</span><span>&#21551;&#21160;&#38431;&#21015;</span></button>
+        </div>
+      </header>
+
+      <section class="dashboard" id="libraryView">
+        <div class="stat-grid">
+          <article class="stat-card accent-blue"><span class="stat-label">&#32032;&#26448;&#24635;&#25968;</span><strong id="totalCount">--</strong><small id="totalSize">-- GB</small></article>
+          <article class="stat-card accent-amber"><span class="stat-label">&#31561;&#24453;&#22788;&#29702;</span><strong id="pendingCount">--</strong><small>&#21487;&#25353;&#20998;&#31867;&#25209;&#37327;&#20837;&#38431;</small></article>
+          <article class="stat-card accent-violet"><span class="stat-label">&#38431;&#21015;&#20013;</span><strong id="queuedCount">--</strong><small id="runningLabel">&#22788;&#29702;&#22120;&#24050;&#26242;&#20572;</small></article>
+          <article class="stat-card accent-green"><span class="stat-label">&#24050;&#23436;&#25104;</span><strong id="completedCount">--</strong><small id="failedLabel">0 &#20010;&#22833;&#36133;&#20219;&#21153;</small></article>
+        </div>
+
+        <div class="toolbar-panel">
+          <div class="filter-group">
+            <select id="categoryFilter"><option value="">&#20840;&#37096;&#20998;&#31867;</option></select>
+            <select id="statusFilter">
+              <option value="">&#20840;&#37096;&#29366;&#24577;</option>
+              <option value="pending">&#24453;&#22788;&#29702;</option>
+              <option value="queued">&#24050;&#20837;&#38431;</option>
+              <option value="processing">&#22788;&#29702;&#20013;</option>
+              <option value="completed">&#24050;&#23436;&#25104;</option>
+              <option value="failed">&#22833;&#36133;</option>
+            </select>
+            <button id="selectPageButton" class="btn subtle">&#36873;&#20013;&#26412;&#39029;</button>
+          </div>
+          <div class="selection-actions">
+            <span id="selectionText">&#24050;&#36873;&#25321; 0 &#39033;</span>
+            <button id="queueSelectedButton" class="btn primary" disabled>&#28155;&#21152;&#21040;&#38431;&#21015;</button>
+          </div>
+        </div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <div class="empty-icon">&#9638;</div>
+          <h2>&#36824;&#27809;&#26377;&#32032;&#26448;</h2>
+          <p>&#28857;&#20987;&#8220;&#37325;&#26032;&#25195;&#25551;&#8221;&#65292;&#23558;&#20849;&#20139;&#30446;&#24405;&#20013;&#30340;&#35270;&#39057;&#23548;&#20837;&#32032;&#26448;&#24211;&#12290;</p>
+          <button class="btn primary" onclick="document.getElementById('scanButton').click()">&#25195;&#25551;&#20849;&#20139;&#30446;&#24405;</button>
+        </div>
+        <div id="videoGrid" class="video-grid"></div>
+
+        <div class="pagination">
+          <button id="prevPage" class="btn subtle">&#8592; &#19978;&#19968;&#39029;</button>
+          <span id="pageInfo">1 / 1</span>
+          <button id="nextPage" class="btn subtle">&#19979;&#19968;&#39029; &#8594;</button>
+        </div>
+      </section>
+
+      <section class="queue-view hidden" id="queueView">
+        <div class="section-heading"><div><p class="eyebrow">PROCESSING PIPELINE</p><h2>&#20219;&#21153;&#38431;&#21015;</h2></div><button id="retryFailedButton" class="btn ghost">&#37325;&#35797;&#20840;&#37096;&#22833;&#36133;&#20219;&#21153;</button></div>
+        <div id="queueList" class="queue-list"></div>
+      </section>
+
+      <section class="settings-view hidden" id="settingsView">
+        <div class="settings-card">
+          <p class="eyebrow">REMOTE MODEL</p><h2>&#20113;&#31471;&#35270;&#39057;&#20462;&#22797; API</h2>
+          <p class="settings-intro">&#26412;&#22320;&#21482;&#36127;&#36131;&#32032;&#26448;&#25195;&#25551;&#12289;&#36974;&#32617;&#29983;&#25104;&#12289;&#38431;&#21015;&#21644;&#32467;&#26524;&#24402;&#26723;&#65292;&#35270;&#39057;&#20462;&#22797;&#20840;&#37096;&#20132;&#30001;&#36828;&#31243; API&#12290;</p>
+          <form id="settingsForm" class="settings-form">
+            <label><span>&#32032;&#26448;&#30446;&#24405;</span><input name="source_dir" required></label>
+            <label><span>&#36755;&#20986;&#30446;&#24405;</span><input name="output_dir" required></label>
+            <div class="form-row">
+              <label><span>API &#36866;&#37197;&#22120;</span><select name="provider"><option value="mock">Mock &#28436;&#31034;</option><option value="generic">Generic HTTP API</option></select></label>
+              <label><span>&#24182;&#21457;&#25968;</span><input name="concurrency" type="number" min="1" max="8"></label>
+            </div>
+            <label><span>API URL</span><input name="api_url" type="url" placeholder="https://provider.example/v1/video-inpaint"></label>
+            <label><span>API Key <em id="keyState"></em></span><input name="api_key" type="password" placeholder="&#30041;&#31354;&#34920;&#31034;&#20445;&#30041;&#24403;&#21069;&#20250;&#35805;&#23494;&#38053;"></label>
+            <div class="form-row">
+              <label><span>&#26368;&#22823;&#37325;&#35797;</span><input name="max_retries" type="number" min="0" max="10"></label>
+              <label><span>&#26597;&#35810;&#38388;&#38548; (s)</span><input name="poll_interval_seconds" type="number" min="0.5" step="0.5"></label>
+            </div>
+            <button class="btn primary" type="submit">&#20445;&#23384;&#35774;&#32622;</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <aside id="detailDrawer" class="detail-drawer">
+    <div class="drawer-header"><div><p class="eyebrow">MASK REVIEW</p><h2 id="drawerTitle">&#36974;&#32617;&#22797;&#26680;</h2></div><button id="closeDrawer" class="icon-button">&times;</button></div>
+    <div class="drawer-body">
+      <div id="videoStage" class="video-stage"><video id="previewVideo" controls playsinline></video><div id="maskBox" class="mask-box"><span>&#21435;&#27700;&#21360;&#21306;&#22495;</span></div></div>
+      <div class="video-meta"><span id="drawerCategory"></span><span id="drawerDuration"></span><span id="drawerSize"></span><span id="detectionInfo"></span></div>
+      <div class="mask-controls">
+        <div class="control-heading"><div><h3>&#36974;&#32617;&#33539;&#22260;</h3><p>&#24037;&#20855;&#20250;&#25277;&#21462; 5 &#20010;&#26102;&#21051;&#65292;&#32047;&#31215;&#25345;&#32493;&#25991;&#23383;&#36793;&#32536;&#65292;&#33258;&#21160;&#36866;&#37197;&#19981;&#21516;&#35270;&#39057;&#20013;&#30340;&#27700;&#21360;&#20301;&#32622;&#12290;</p></div><button id="resetRegion" class="btn subtle">&#26234;&#33021;&#23450;&#20301;</button></div>
+        <label><span>X <output id="xValue"></output></span><input id="maskX" type="range" min="0" max="0.9" step="0.005"></label>
+        <label><span>Y <output id="yValue"></output></span><input id="maskY" type="range" min="0" max="0.9" step="0.005"></label>
+        <label><span>&#23485;&#24230; <output id="wValue"></output></span><input id="maskW" type="range" min="0.05" max="0.8" step="0.005"></label>
+        <label><span>&#39640;&#24230; <output id="hValue"></output></span><input id="maskH" type="range" min="0.03" max="0.5" step="0.005"></label>
+      </div>
+    </div>
+    <div class="drawer-footer"><button id="saveRegion" class="btn ghost">&#20445;&#23384;&#36974;&#32617;</button><button id="queueCurrent" class="btn primary">&#20445;&#23384;&#24182;&#20837;&#38431;</button></div>
+  </aside>
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

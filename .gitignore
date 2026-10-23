@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+data/*
+!data/.gitkeep
+cache/*
+!cache/.gitkeep
+output/*
+!output/.gitkeep
+*.log
+.DS_Store
+Thumbs.db

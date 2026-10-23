@@ -1,0 +1,135 @@
+# ClearFrame Watermark Batch Console
+
+Local batch orchestration for licensed video assets. The application scans the
+network share, detects the watermark location, builds a per-video mask, submits
+the video to a remote inpainting API, and archives the returned file.
+
+> Only process footage that you own or are licensed to modify.
+
+## Detection overview
+
+Because watermark position and scale vary between videos, one global rectangle
+is not enough. ClearFrame uses lightweight local template matching across five
+sampled frames. This is coordinate detection only; video restoration remains
+entirely in the remote API.
+
+## Pipeline
+
+1. Read the supplied CSV manifest and reconcile files on the network share.
+2. Recursively reconcile the real files with optional CSV metadata. When a CSV
+   category path is outdated, a unique filename match resolves the actual nested
+   path, and files absent from the CSV are still discovered.
+3. Sample five moments across the video with the bundled FFmpeg binary.
+4. Accumulate persistent text edges, match multiple watermark scales, and save
+   a normalized mask region with a confidence score.
+5. Allow an operator to review or adjust the region in the preview drawer.
+6. Queue selected videos in SQLite with retry and resume state.
+7. Upload `video + PNG mask + metadata` to the configured remote API.
+8. Poll the remote job and download the result into the category output folder.
+
+## Start
+
+```powershell
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+Open [http://127.0.0.1:8765](http://127.0.0.1:8765), then configure the source
+and output directories from the settings page.
+
+The default provider is `mock`; it copies the input to the output folder so the
+complete queue can be tested without API charges.
+
+## Generic remote API contract
+
+Set the provider to `generic`, then configure:
+
+```powershell
+$env:WATERMARK_API_KEY = "your-key"
+$env:WATERMARK_API_URL = "https://provider.example/v1/video-inpaint"
+```
+
+ClearFrame sends a multipart request:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `video` | file | Source video |
+| `mask` | PNG file | White repair area on a black background |
+| `metadata` | JSON string | Video ID, material ID and relative path |
+| `prompt` | string | Temporal reconstruction instruction |
+
+Supported responses:
+
+```json
+{"output_url": "https://cdn.example/result.mp4"}
+```
+
+or an asynchronous job:
+
+```json
+{
+  "job_id": "job_123",
+  "status_url": "https://provider.example/v1/jobs/job_123"
+}
+```
+
+The status endpoint should return `status`, optional numeric `progress`, and an
+`output_url` when complete. A direct `video/*` response is also accepted.
+
+## Production recommendations
+
+- Start with concurrency `2`; increase only after confirming provider limits.
+- Run a 30-50 video quality sample before submitting the entire library.
+- Keep the original share read-only and write results to a separate volume.
+- Prefer API providers that preserve source resolution, frame rate and audio.
+- Add webhook support when the provider offers it to reduce polling traffic.
+- Review low-confidence or visually complex clips before batch submission.
+
+## Mask detection behavior
+
+- New or legacy masks are detected again with the multi-frame detector before
+  the worker submits a video.
+- Moving subjects and changing backgrounds are suppressed by temporal edge
+  accumulation, so a single obstructed or low-contrast frame no longer decides
+  the result.
+- The final region scales its logo allowance, spacing, and safety edge from the
+  detected text height instead of adding a fixed percentage of the whole frame.
+- Small-watermark templates include the circular `new` mark as a horizontal
+  anchor, preventing repeated text strokes from shifting the mask on the X axis.
+- Large watermark matches receive a wider size-aware safety edge for antialiasing
+  and shadow pixels, while the small-watermark region remains unchanged.
+- The maximum watermark tier receives a final two-pixel horizontal and one-pixel
+  vertical margin on each side to cover the last rendered edge pixels.
+- Extra-large moving-camera watermarks use a separate safety tier with twelve
+  horizontal and ten vertical pixels per side at the 480-pixel detection scale.
+- Partial `18%`-`22%` templates are excluded because they can match the last few
+  glyphs or background lines; complete multi-scale matches receive a small size
+  preference so the full logo and text region wins.
+- When a `32%` text match loses the circular logo but an aligned `40%` candidate
+  confirms the full watermark, only the missing left logo area is restored; the
+  recovered box also receives five horizontal and two vertical pixels per side
+  so the preview border and antialiasing cannot clip the logo edge.
+- Mask feathering is clipped inside the detected region so it cannot enlarge the
+  area submitted to the remote API.
+- Low-confidence matches are marked `Mask review required` in the library and
+  display their confidence in the preview drawer.
+- Saving a manually adjusted region marks that mask as reviewed and prevents
+  automatic detection from overwriting it.
+
+## Tests
+
+```powershell
+python -m pytest -q
+```
+
+## Project layout
+
+- `app/main.py` - FastAPI routes and static application host
+- `app/scanner.py` - CSV/network share indexing
+- `app/media.py` - preview, watermark detection and mask generation
+- `app/providers.py` - mock and generic remote API adapters
+- `app/worker.py` - resumable concurrent job runner
+- `app/static/` - browser console
+- `data/watermark.db` - local queue state, created at runtime
+- `cache/` - generated previews and masks
+- `output/` - returned videos grouped by source category
