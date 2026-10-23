@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+data/*.db
+data/settings.json
+cache/*
+!cache/.gitkeep
+output/*
+!output/.gitkeep
