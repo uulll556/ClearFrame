@@ -6,26 +6,35 @@ the video to a remote inpainting API, and archives the returned file.
 
 > Only process footage that you own or are licensed to modify.
 
-## Dataset findings
+## Detection overview
+
+Because watermark position and scale vary between videos, one global rectangle
+is not enough. ClearFrame uses lightweight local template matching across five
+sampled frames. This is coordinate detection only; video restoration remains
+entirely in the remote API, or in one of the optional local repair engines
+described below.
+
+Reference dataset notes for the supplied library:
 
 - 3,332 videos in 19 categories
 - About 11.45 GB total, 3.52 MB average, 104.61 MB maximum
-- The watermark text is consistent, but its vertical position differs by video
+- The watermark text is consistent, but its vertical position and scale differ
+  by video
 - The watermark remains fixed within an individual video
-
-Because the position varies between videos, one global rectangle is not enough.
-ClearFrame uses lightweight local template matching on a preview frame. This is
-coordinate detection only; video restoration remains entirely in the remote API.
 
 ## Pipeline
 
 1. Read the supplied CSV manifest and reconcile files on the network share.
-2. Generate a cached preview frame with the bundled FFmpeg binary.
-3. Match the known watermark text and save a normalized mask region.
-4. Allow an operator to review or adjust the region in the preview drawer.
-5. Queue selected videos in SQLite with retry and resume state.
-6. Upload `video + PNG mask + metadata` to the configured remote API.
-7. Poll the remote job and download the result into the category output folder.
+2. Recursively reconcile the real files with optional CSV metadata. When a CSV
+   category path is outdated, a unique filename match resolves the actual nested
+   path, and files absent from the CSV are still discovered.
+3. Sample five moments across the video with the bundled FFmpeg binary.
+4. Accumulate persistent text edges, match multiple watermark scales, and save
+   a normalized mask region with a confidence score.
+5. Allow an operator to review or adjust the region in the preview drawer.
+6. Queue selected videos in SQLite with retry and resume state.
+7. Upload `video + PNG mask + metadata` to the configured remote API.
+8. Poll the remote job and download the result into the category output folder.
 
 ## Start
 
@@ -37,13 +46,12 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 or `.\start.ps1` for the default port. When port 8765 is already taken,
 use `.\start.ps1 -Port 8766`.
 
-Open [http://127.0.0.1:8765](http://127.0.0.1:8765). The initial source
-directory is already configured for the supplied network share and can be
-changed from the API settings page.
+Open [http://127.0.0.1:8765](http://127.0.0.1:8765), then configure the source
+and output directories from the settings page.
 
 The default provider is `mock`; it copies the input to the output folder so the
 complete queue can be tested without API charges. For real removal switch to
-`propainter` (GPU) or `local` (CPU).
+`propainter` (GPU), `local` (CPU), or `generic` (remote HTTP API).
 
 ## Local repair provider
 
@@ -86,6 +94,7 @@ Requirements:
   `recurrent_flow_completion.pth`, about 200 MB). The source is published at
   [sczhou/ProPainter](https://huggingface.co/spaces/sczhou/ProPainter) and the
   weights at [camenduru/ProPainter](https://huggingface.co/camenduru/ProPainter).
+  The checkpoints are not tracked in Git; keep them in the working tree.
 
 Only the watermark band is repainted, not the whole frame. Clips up to 720p cut
 the band out and process it at native resolution (`WATERMARK_PROPAINTER_BAND=1`),
@@ -151,6 +160,37 @@ The status endpoint should return `status`, optional numeric `progress`, and an
 - Prefer API providers that preserve source resolution, frame rate and audio.
 - Add webhook support when the provider offers it to reduce polling traffic.
 - Review low-confidence or visually complex clips before batch submission.
+
+## Mask detection behavior
+
+- New or legacy masks are detected again with the multi-frame detector before
+  the worker submits a video.
+- Moving subjects and changing backgrounds are suppressed by temporal edge
+  accumulation, so a single obstructed or low-contrast frame no longer decides
+  the result.
+- The final region scales its logo allowance, spacing, and safety edge from the
+  detected text height instead of adding a fixed percentage of the whole frame.
+- Small-watermark templates include the circular `new` mark as a horizontal
+  anchor, preventing repeated text strokes from shifting the mask on the X axis.
+- Large watermark matches receive a wider size-aware safety edge for antialiasing
+  and shadow pixels, while the small-watermark region remains unchanged.
+- The maximum watermark tier receives a final two-pixel horizontal and one-pixel
+  vertical margin on each side to cover the last rendered edge pixels.
+- Extra-large moving-camera watermarks use a separate safety tier with twelve
+  horizontal and ten vertical pixels per side at the 480-pixel detection scale.
+- Partial `18%`-`22%` templates are excluded because they can match the last few
+  glyphs or background lines; complete multi-scale matches receive a small size
+  preference so the full logo and text region wins.
+- When a `32%` text match loses the circular logo but an aligned `40%` candidate
+  confirms the full watermark, only the missing left logo area is restored; the
+  recovered box also receives five horizontal and two vertical pixels per side
+  so the preview border and antialiasing cannot clip the logo edge.
+- Mask feathering is clipped inside the detected region so it cannot enlarge the
+  area submitted to the remote API.
+- Low-confidence matches are marked `Mask review required` in the library and
+  display their confidence in the preview drawer.
+- Saving a manually adjusted region marks that mask as reviewed and prevents
+  automatic detection from overwriting it.
 
 ## Tests
 

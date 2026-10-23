@@ -68,17 +68,44 @@ class JobWorker:
         try:
             if not media_path.exists():
                 raise FileNotFoundError(f"Source file not found: {media_path}")
-            if video.get("mask_x") is None:
+            if video.get("mask_x") is None or video.get("mask_method") in {
+                None,
+                "legacy_single_frame",
+                "legacy_oversized",
+                "legacy_x_alignment",
+                "legacy_large_padding",
+                "legacy_max_padding",
+                "legacy_false_scale",
+                "legacy_extra_large_padding",
+                "legacy_scale_alignment",
+                "legacy_logo_recovery",
+                "legacy_logo_edge_padding",
+                "legacy_logo_edge_padding_v2",
+                "legacy_logo_edge_vertical",
+                "multi_frame_template",
+                "multi_frame_adaptive",
+                "multi_frame_logo_anchor",
+                "multi_frame_size_aware",
+                "multi_frame_size_aware_v2",
+                "multi_frame_complete_scale",
+                "multi_frame_complete_scale_v2",
+                "multi_frame_complete_scale_v3",
+                "multi_frame_complete_scale_v4",
+                "multi_frame_complete_scale_v5",
+                "multi_frame_complete_scale_v6",
+            }:
                 region = await asyncio.to_thread(
                     detect_watermark_region, video["id"], media_path
                 )
                 execute(
                     """
-                    UPDATE videos SET mask_x=?, mask_y=?, mask_width=?, mask_height=?, updated_at=?
+                    UPDATE videos SET mask_x=?, mask_y=?, mask_width=?, mask_height=?,
+                                      mask_score=?, mask_method=?, mask_review_required=?, updated_at=?
                     WHERE id=?
                     """,
                     (
                         region["x"], region["y"], region["width"], region["height"],
+                        region["score"], region["method"], int(region["review_required"]),
                         utc_now(), video["id"],
                     ),
                 )

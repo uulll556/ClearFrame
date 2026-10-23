@@ -101,7 +101,7 @@ function renderVideos() {
       <div class="thumb-wrap">
         <input class="card-check" type="checkbox" ${selected ? "checked" : ""} aria-label="select">
         <img loading="lazy" src="/api/videos/${video.id}/thumbnail" alt="">
-        <span class="status-badge ${video.status}">${statusLabels[video.status] || video.status}</span>
+        <span class="status-badge ${video.mask_review_required && video.mask_x != null ? "review" : video.status}">${video.mask_review_required && video.mask_x != null ? "\u906e\u7f69\u5f85\u590d\u6838" : (statusLabels[video.status] || video.status)}</span>
         <span class="duration-badge">${formatDuration(video.duration_seconds)}</span>
       </div>
       ${video.status === "processing" ? `<div class="progress-track"><div class="progress-bar" style="width:${progress}%"></div></div>` : ""}
@@ -168,6 +168,7 @@ async function openDrawer(videoId) {
     $("#drawerCategory").textContent = video.category;
     $("#drawerDuration").textContent = formatDuration(video.duration_seconds);
     $("#drawerSize").textContent = formatBytes(video.size_bytes);
+    updateDetectionInfo(video);
     $("#previewVideo").src = `/api/videos/${video.id}/media`;
     const values = {
       x: video.mask_x ?? state.settings.mask_x,
@@ -178,7 +179,36 @@ async function openDrawer(videoId) {
     setRegionControls(values);
     $("#detailDrawer").classList.add("open");
     $("#drawerBackdrop").classList.add("open");
-    if (video.mask_x == null) detectCurrentRegion(false);
+    if (
+      video.mask_x == null ||
+      [
+        "legacy_single_frame",
+        "legacy_oversized",
+        "legacy_x_alignment",
+        "legacy_large_padding",
+        "legacy_max_padding",
+        "legacy_false_scale",
+        "legacy_extra_large_padding",
+        "legacy_scale_alignment",
+        "legacy_logo_recovery",
+        "legacy_logo_edge_padding",
+        "legacy_logo_edge_padding_v2",
+        "legacy_logo_edge_vertical",
+        "multi_frame_template",
+        "multi_frame_adaptive",
+        "multi_frame_logo_anchor",
+        "multi_frame_size_aware",
+        "multi_frame_size_aware_v2",
+        "multi_frame_complete_scale",
+        "multi_frame_complete_scale_v2",
+        "multi_frame_complete_scale_v3",
+        "multi_frame_complete_scale_v4",
+        "multi_frame_complete_scale_v5",
+        "multi_frame_complete_scale_v6",
+      ].includes(video.mask_method)
+    ) {
+      detectCurrentRegion(false);
+    }
   } catch (error) { showToast(error.message, true); }
 }
 
@@ -202,6 +232,25 @@ function setRegionControls(region) {
   $("#maskW").value = region.width;
   $("#maskH").value = region.height;
   updateMaskPreview();
+}
+
+function updateDetectionInfo(video) {
+  const info = $("#detectionInfo");
+  if (video.mask_method === "manual") {
+    info.textContent = "\u624b\u52a8\u906e\u7f69";
+    info.className = "confidence high";
+    return;
+  }
+  if (video.mask_score == null) {
+    info.textContent = "\u5c1a\u672a\u5b9a\u4f4d";
+    info.className = "confidence";
+    return;
+  }
+  const percent = Math.round(Number(video.mask_score) * 100);
+  info.textContent = video.mask_review_required
+    ? `\u5b9a\u4f4d\u7f6e\u4fe1 ${percent}% \u00b7 \u5efa\u8bae\u590d\u6838`
+    : `\u5b9a\u4f4d\u7f6e\u4fe1 ${percent}%`;
+  info.className = `confidence ${video.mask_review_required ? "low" : "high"}`;
 }
 
 function updateMaskPreview() {
@@ -243,6 +292,7 @@ async function detectCurrentRegion(showMessage = true) {
     state.currentVideo = await api(`/api/videos/${state.currentVideo.id}/detect-region`, {
       method: "POST",
     });
+    updateDetectionInfo(state.currentVideo);
     setRegionControls({
       x: state.currentVideo.mask_x, y: state.currentVideo.mask_y,
       width: state.currentVideo.mask_width, height: state.currentVideo.mask_height,

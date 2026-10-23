@@ -213,6 +213,13 @@ def update_region(video_id: int, payload: RegionUpdate) -> dict[str, Any]:
         """,
         (payload.x, payload.y, payload.width, payload.height, utc_now(), video_id),
     )
+    execute(
+        """
+        UPDATE videos SET mask_score=1, mask_method='manual', mask_review_required=0
+        WHERE id=?
+        """,
+        (video_id,),
+    )
     return get_video(video_id)
 
 
@@ -227,11 +234,13 @@ async def detect_region(video_id: int) -> dict[str, Any]:
     region = await asyncio.to_thread(detect_watermark_region, video_id, path)
     execute(
         """
-        UPDATE videos SET mask_x=?, mask_y=?, mask_width=?, mask_height=?, updated_at=?
+        UPDATE videos SET mask_x=?, mask_y=?, mask_width=?, mask_height=?,
+                          mask_score=?, mask_method=?, mask_review_required=?, updated_at=?
         WHERE id=?
         """,
         (
             region["x"], region["y"], region["width"], region["height"],
+            region["score"], region["method"], int(region["review_required"]),
             utc_now(), video_id,
         ),
     )

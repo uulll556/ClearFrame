@@ -27,6 +27,7 @@ class Settings:
     mask_width: float = 0.38
     mask_height: float = 0.13
     mask_feather: int = 6
+    # Local repair engines (local PatchMatch / ProPainter) tuning knobs.
     local_mask_grow: int = 2
     local_patch_size: int = 5
 

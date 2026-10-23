@@ -90,7 +90,7 @@
       <section class="settings-view hidden" id="settingsView">
         <div class="settings-card">
           <p class="eyebrow">REPAIR ENGINE</p><h2>视频修复引擎</h2>
-          <p class="settings-intro">本地负责素材扫描、遮罩生成、队列和结果归档；修复可交给远程 API，也可使用内置的本地 PatchMatch 修复器。</p>
+          <p class="settings-intro">本地负责素材扫描、遮罩生成、队列和结果归档；修复可交给远程 API，也可使用内置的本地 PatchMatch 或 ProPainter 引擎。</p>
           <form id="settingsForm" class="settings-form">
             <label><span>&#32032;&#26448;&#30446;&#24405;</span><input name="source_dir" required></label>
             <label><span>&#36755;&#20986;&#30446;&#24405;</span><input name="output_dir" required></label>
@@ -119,9 +119,9 @@
     <div class="drawer-header"><div><p class="eyebrow">MASK REVIEW</p><h2 id="drawerTitle">&#36974;&#32617;&#22797;&#26680;</h2></div><button id="closeDrawer" class="icon-button">&times;</button></div>
     <div class="drawer-body">
       <div id="videoStage" class="video-stage"><video id="previewVideo" controls playsinline></video><div id="maskBox" class="mask-box"><span>&#21435;&#27700;&#21360;&#21306;&#22495;</span></div></div>
-      <div class="video-meta"><span id="drawerCategory"></span><span id="drawerDuration"></span><span id="drawerSize"></span></div>
+      <div class="video-meta"><span id="drawerCategory"></span><span id="drawerDuration"></span><span id="drawerSize"></span><span id="detectionInfo"></span></div>
       <div class="mask-controls">
-        <div class="control-heading"><div><h3>&#36974;&#32617;&#33539;&#22260;</h3><p>&#24037;&#20855;&#20250;&#23545;&#39318;&#24103;&#36827;&#34892;&#27169;&#26495;&#21305;&#37197;&#65292;&#33258;&#21160;&#36866;&#37197;&#19981;&#21516;&#35270;&#39057;&#20013;&#30340;&#27700;&#21360;&#20301;&#32622;&#12290;</p></div><button id="resetRegion" class="btn subtle">&#26234;&#33021;&#23450;&#20301;</button></div>
+        <div class="control-heading"><div><h3>&#36974;&#32617;&#33539;&#22260;</h3><p>&#24037;&#20855;&#20250;&#25277;&#21462; 5 &#20010;&#26102;&#21051;&#65292;&#32047;&#31215;&#25345;&#32493;&#25991;&#23383;&#36793;&#32536;&#65292;&#33258;&#21160;&#36866;&#37197;&#19981;&#21516;&#35270;&#39057;&#20013;&#30340;&#27700;&#21360;&#20301;&#32622;&#12290;</p></div><button id="resetRegion" class="btn subtle">&#26234;&#33021;&#23450;&#20301;</button></div>
         <label><span>X <output id="xValue"></output></span><input id="maskX" type="range" min="0" max="0.9" step="0.005"></label>
         <label><span>Y <output id="yValue"></output></span><input id="maskY" type="range" min="0" max="0.9" step="0.005"></label>
         <label><span>&#23485;&#24230; <output id="wValue"></output></span><input id="maskW" type="range" min="0.05" max="0.8" step="0.005"></label>

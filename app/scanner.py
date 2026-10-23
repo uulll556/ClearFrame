@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import csv
+from collections import defaultdict
 from pathlib import Path
 
-from .database import upsert_videos
+from .database import sync_videos
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
@@ -25,6 +26,14 @@ def scan_source(source_dir: str) -> dict[str, int]:
     if not root.exists():
         raise FileNotFoundError(f"Source directory is unavailable: {source_dir}")
 
+    media_files = sorted(
+        path for path in root.rglob("*")
+        if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS
+    )
+    files_by_name: dict[str, list[Path]] = defaultdict(list)
+    for media_path in media_files:
+        files_by_name[media_path.name.casefold()].append(media_path)
+
     imported = 0
     missing = 0
     csv_path = root / CSV_NAME
@@ -37,9 +46,15 @@ def scan_source(source_dir: str) -> dict[str, int]:
                 filename = (row.get("\u6587\u4ef6\u540d") or "").strip()
                 if not filename:
                     continue
-                relative_path = str(Path(category) / filename)
-                media_path = root / relative_path
-                exists = media_path.exists()
+                expected_path = root / category / filename
+                matches = files_by_name.get(filename.casefold(), [])
+                media_path = expected_path if expected_path.is_file() else None
+                if media_path is None and len(matches) == 1:
+                    media_path = matches[0]
+                exists = media_path is not None
+                relative_path = str(
+                    media_path.relative_to(root) if media_path else Path(category) / filename
+                )
                 size_bytes = media_path.stat().st_size if exists else int(
                     float(row.get("\u5927\u5c0fMB") or 0) * 1024 * 1024
                 )
@@ -53,24 +68,25 @@ def scan_source(source_dir: str) -> dict[str, int]:
                     "material_id": (row.get("\u7d20\u6750ID") or "").strip(),
                     "source_exists": exists,
                 })
-                indexed_paths.add(relative_path.lower())
+                indexed_paths.add(relative_path.casefold())
                 imported += 1
                 missing += int(not exists)
 
     discovered = 0
-    if imported == 0:
-        for media_path in root.rglob("*"):
-            if not media_path.is_file() or media_path.suffix.lower() not in VIDEO_EXTENSIONS:
-                continue
-            relative_path = str(media_path.relative_to(root))
-            items.append({
-                "relative_path": relative_path,
-                "category": media_path.parent.name,
-                "filename": media_path.name,
-                "title": media_path.stem,
-                "size_bytes": media_path.stat().st_size,
-                "source_exists": True,
-            })
-            discovered += 1
-    upsert_videos(items)
+    for media_path in media_files:
+        relative = media_path.relative_to(root)
+        relative_path = str(relative)
+        if relative_path.casefold() in indexed_paths:
+            continue
+        items.append({
+            "relative_path": relative_path,
+            "category": relative.parts[0] if len(relative.parts) > 1 else "Uncategorized",
+            "filename": media_path.name,
+            "title": media_path.stem,
+            "size_bytes": media_path.stat().st_size,
+            "source_exists": True,
+        })
+        indexed_paths.add(relative_path.casefold())
+        discovered += 1
+    sync_videos(items)
     return {"imported": imported, "discovered": discovered, "missing": missing}
